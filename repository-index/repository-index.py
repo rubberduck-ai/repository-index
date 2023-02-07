@@ -58,4 +58,10 @@ allFiles = repo.git.ls_files().split("\n")
 
 result = list(filter(is_valid_file, allFiles))
 
+# read the content of each file
+for file in result:
+    with open(args.repository_path + "/" + file, "r") as f:
+        content = f.read()
+        print(content)
+
 print(result)
