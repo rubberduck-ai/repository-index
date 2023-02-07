@@ -30,8 +30,8 @@ def split_linear_lines(content, max_chunk_characters, line_separator="\n"):
             return
         chunks.append(
             {
-                "startPosition": line_positions[segment["startLine"]]["start"],
-                "endPosition": line_positions[current_line]["end"],
+                "start_position": line_positions[segment["start_line"]]["start"],
+                "end_position": line_positions[current_line]["end"],
                 "content": line_separator.join(segment["lines"]),
             }
         )
@@ -43,15 +43,15 @@ def split_linear_lines(content, max_chunk_characters, line_separator="\n"):
         if segment == None:
             segment = {
                 "lines": [line_text],
-                "startLine": i,
-                "characterCount": len(line_text),
+                "start_line": i,
+                "character_count": len(line_text),
             }
         else:
             segment["lines"].append(line_text)
-            segment["characterCount"] += len(line_text) + len(line_separator)
+            segment["character_count"] += len(line_text) + len(line_separator)
 
         # this leads to chunks that are too big (by 1 line)
-        if segment["characterCount"] > max_chunk_characters:
+        if segment["character_count"] > max_chunk_characters:
             add_segment_to_chunks(i)
 
     add_segment_to_chunks(len(lines) - 1)

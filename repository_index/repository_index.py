@@ -22,11 +22,20 @@ allFiles = repo.git.ls_files().split("\n")
 
 result = list(filter(is_supported_file, allFiles))
 
-# read the content of each file
+chunks_with_embedding = []
+
 for file in result:
     with open(args.repository_path + "/" + file, "r") as f:
         content = f.read()
         chunks = split_linear_lines(content, 150)
-        print(chunks)
+        for chunk in chunks:
+            chunks_with_embedding.append(
+                {
+                    "start_position": chunk["start_position"],
+                    "end_position": chunk["end_position"],
+                    "content": chunk["content"],
+                    "file": file,
+                }
+            )
 
-print(result)
+print(chunks_with_embedding[-1])
