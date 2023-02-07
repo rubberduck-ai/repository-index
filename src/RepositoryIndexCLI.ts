@@ -88,7 +88,17 @@ runProgram({
       }
     }
 
-    await fs.writeFile(outputFile, JSON.stringify(chunksWithEmbedding));
+    await fs.writeFile(
+      outputFile,
+      JSON.stringify({
+        version: 0,
+        embedding: {
+          source: "open-ai",
+          model: "text-embedding-ada-002",
+        },
+        chunks: chunksWithEmbedding,
+      })
+    );
 
     console.log();
     console.log(`Tokens used: ${tokenCount}`);
