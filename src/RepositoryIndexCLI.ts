@@ -48,6 +48,8 @@ runProgram({
       }
     > = [];
 
+    let tokenCount = 0;
+
     for (const file of files) {
       if (!isSupportedFile(file)) {
         continue;
@@ -64,19 +66,33 @@ runProgram({
           `Generating embedding for chunk '${file}' ${chunk.startPosition}:${chunk.endPosition}`
         );
 
-        const embeddingResult = await openAiClient.generateEmbedding({
-          input: chunk.content,
-        });
+        try {
+          const embeddingResult = await openAiClient.generateEmbedding({
+            input: chunk.content,
+          });
 
-        chunksWithEmbedding.push({
-          file,
-          ...chunk,
-          embedding: embeddingResult.embedding,
-        });
+          chunksWithEmbedding.push({
+            file,
+            ...chunk,
+            embedding: embeddingResult.embedding,
+          });
+
+          tokenCount += embeddingResult.usage.totalTokens;
+        } catch (error) {
+          console.error(error);
+
+          console.log(
+            `Failed to generate embedding for chunk '${file}' ${chunk.startPosition}:${chunk.endPosition}`
+          );
+        }
       }
     }
 
     await fs.writeFile(outputFile, JSON.stringify(chunksWithEmbedding));
+
+    console.log();
+    console.log(`Tokens used: ${tokenCount}`);
+    console.log(`Cost: ${(tokenCount / 1000) * 0.0004} USD`);
   },
 });
 
