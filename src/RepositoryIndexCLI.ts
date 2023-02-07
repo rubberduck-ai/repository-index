@@ -13,11 +13,16 @@ runProgram({
       "--repository-path <string>",
       "Git repository path"
     ).makeOptionMandatory(),
+    new Option(
+      "--output-file <string>",
+      "Name of the output file"
+    ).makeOptionMandatory(),
   ],
   configurationSchema: zod.object({
     repositoryPath: zod.string(),
+    outputFile: zod.string(),
   }),
-  async run({ repositoryPath }) {
+  async run({ repositoryPath, outputFile }) {
     const git = simpleGit({
       baseDir: repositoryPath,
       binary: "git",
@@ -54,7 +59,7 @@ runProgram({
       }
     }
 
-    console.log(chunksWithEmbedding);
+    await fs.writeFile(outputFile, JSON.stringify(chunksWithEmbedding));
   },
 });
 
