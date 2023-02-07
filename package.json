@@ -11,6 +11,9 @@
     "url": "https://github.com/rubberduck-ai/repository-index/issues"
   },
   "license": "MIT",
+  "scripts": {
+    "run-index": "ts-node src/RepositoryIndexCLI.ts"
+  },
   "devDependencies": {
     "@types/node": "16.11.7",
     "typescript": "4.9.4",

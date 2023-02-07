@@ -13,3 +13,9 @@ brew install pnpm
 ```bash
 pnpm install
 ```
+
+### Run
+
+```bash
+pnpm run-index
+```
