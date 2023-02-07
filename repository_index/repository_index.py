@@ -1,5 +1,6 @@
 import argparse
 
+from split_linear_lines import split_linear_lines
 from is_supported_file import is_supported_file
 from git import Repo
 
@@ -25,6 +26,7 @@ result = list(filter(is_supported_file, allFiles))
 for file in result:
     with open(args.repository_path + "/" + file, "r") as f:
         content = f.read()
-        print(content)
+        chunks = split_linear_lines(content, 150)
+        print(chunks)
 
 print(result)
