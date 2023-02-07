@@ -1,4 +1,6 @@
-# Rubberduck Repository Indexer
+# Rubberduck Repository Index
+
+Indexes a Git repository using embeddings. Limited to JavaScript and TypeScript files at the moment.
 
 ## Development
 
@@ -17,5 +19,5 @@ pnpm install
 ### Run
 
 ```bash
-pnpm run-index
+pnpm run-index --repository-path .
 ```

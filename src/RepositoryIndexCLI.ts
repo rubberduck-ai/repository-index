@@ -1,4 +1,5 @@
 import { Option } from "commander";
+import fs from "node:fs/promises";
 import { simpleGit } from "simple-git";
 import zod from "zod";
 import { runProgram } from "./program/runProgram";
@@ -25,7 +26,29 @@ runProgram({
     const files = (await git.raw(["ls-files"])).split("\n");
 
     for (const file of files) {
+      if (!isSupportedFile(file)) {
+        continue;
+      }
+
+      const content = await fs.readFile(`${repositoryPath}/${file}`, "utf8");
+
       console.log(file);
     }
   },
 });
+
+function isSupportedFile(file: string) {
+  return (
+    file.endsWith(".js") ||
+    file.endsWith(".ts") ||
+    file.endsWith(".tsx") ||
+    file.endsWith(".sh") ||
+    file.endsWith(".yaml") ||
+    file.endsWith(".yml") ||
+    file.endsWith(".md") ||
+    file.endsWith(".css") ||
+    file.endsWith(".json") ||
+    file.endsWith(".toml") ||
+    file.endsWith(".config")
+  );
+}
