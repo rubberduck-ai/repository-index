@@ -4,6 +4,7 @@ import { simpleGit } from "simple-git";
 import zod from "zod";
 import { Chunk } from "./chunk/Chunk";
 import { createSplitLinearLines } from "./chunk/splitLinearLines";
+import { OpenAIClient } from "./open-ai/OpenAIClient";
 import { runProgram } from "./program/runProgram";
 
 runProgram({
@@ -17,12 +18,20 @@ runProgram({
       "--output-file <string>",
       "Name of the output file"
     ).makeOptionMandatory(),
+    new Option("--open-ai-api-key <string>", "OpenAI API key")
+      .env("OPEN_AI_API_KEY")
+      .makeOptionMandatory(),
   ],
   configurationSchema: zod.object({
     repositoryPath: zod.string(),
     outputFile: zod.string(),
+    openAiApiKey: zod.string(),
   }),
-  async run({ repositoryPath, outputFile }) {
+  async run({ repositoryPath, outputFile, openAiApiKey }) {
+    const openAiClient = new OpenAIClient({
+      apiKey: openAiApiKey,
+    });
+
     const git = simpleGit({
       baseDir: repositoryPath,
       binary: "git",
@@ -51,10 +60,18 @@ runProgram({
       })(content);
 
       for (const chunk of chunks) {
+        console.log(
+          `Generating embedding for chunk '${file}' ${chunk.startPosition}:${chunk.endPosition}`
+        );
+
+        const embeddingResult = await openAiClient.generateEmbedding({
+          input: chunk.content,
+        });
+
         chunksWithEmbedding.push({
           file,
           ...chunk,
-          embedding: [],
+          embedding: embeddingResult.embedding,
         });
       }
     }
