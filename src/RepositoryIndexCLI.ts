@@ -2,6 +2,7 @@ import { Option } from "commander";
 import fs from "node:fs/promises";
 import { simpleGit } from "simple-git";
 import zod from "zod";
+import { createSplitLinearLines } from "./chunk/splitLinearLines";
 import { runProgram } from "./program/runProgram";
 
 runProgram({
@@ -32,7 +33,13 @@ runProgram({
 
       const content = await fs.readFile(`${repositoryPath}/${file}`, "utf8");
 
-      console.log(file);
+      const chunks = createSplitLinearLines({
+        maxChunkCharacters: 150,
+      })(content);
+
+      for (const chunk of chunks) {
+        console.log(chunk);
+      }
     }
   },
 });
