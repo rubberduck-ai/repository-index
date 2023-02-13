@@ -55,7 +55,7 @@ with open(args.output_file, "w") as f:
             {
                 "version": 0,
                 "embedding": {
-                    "source": "open-ai",
+                    "source": "openai",
                     "model": "text-embedding-ada-002",
                 },
                 "chunks": chunks_with_embedding,
