@@ -1,17 +1,31 @@
 import argparse
 import json
 import os
+from pathlib import Path
 
-from dotenv import load_dotenv
-from git import Repo
 import openai
-
+from git import Repo
 from is_supported_file import is_supported_file
 from split_linear_lines import split_linear_lines
 
-load_dotenv()
 
-api_key = os.getenv('OPENAI_API_KEY')
+api_key_path = Path.home() / ".openai" / "api_key"
+
+if not api_key_path.exists():
+    choice = input(
+        "OpenAI API key not found. Do you want to create a new API key file? (y/n) "
+    ).lower()
+    if choice == "y":
+        api_key = input("Please enter your OpenAI API key: ").strip()
+        api_key_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(api_key_path, "w") as f:
+            f.write(api_key)
+            print(f"API key saved to {api_key_path}")
+    else:
+        raise ValueError("OpenAI API key is required to run this script.")
+
+with open(api_key_path) as f:
+    openai.api_key = f.read().strip()
 
 parser = argparse.ArgumentParser(description="Repository Index")
 
@@ -22,8 +36,11 @@ parser.add_argument("--output-file", type=str, help="Output file", required=True
 
 args = parser.parse_args()
 
-repo = Repo(args.repository_path)
-allFiles = repo.git.ls_files().split("\n")
+if os.path.exists(args.repository_path):
+    repo = Repo(args.repository_path)
+    allFiles = repo.git.ls_files().split("\n")
+else:
+    raise ValueError("Invalid repository path")
 
 result = list(filter(is_supported_file, allFiles))
 
@@ -56,19 +73,22 @@ for file in result:
 
             token_count += result.usage.total_tokens
 
-with open(args.output_file, "w") as f:
-    f.write(
-        json.dumps(
-            {
-                "version": 0,
-                "embedding": {
-                    "source": "openai",
-                    "model": "text-embedding-ada-002",
-                },
-                "chunks": chunks_with_embedding,
-            }
+if os.path.exists(os.path.dirname(args.output_file)):
+    with open(args.output_file, "w") as f:
+        f.write(
+            json.dumps(
+                {
+                    "version": 0,
+                    "embedding": {
+                        "source": "openai",
+                        "model": "text-embedding-ada-002",
+                    },
+                    "chunks": chunks_with_embedding,
+                }
+            )
         )
-    )
+else:
+    raise ValueError("Invalid output file path")
 
 cost = (token_count / 1000) * 0.0004
 
