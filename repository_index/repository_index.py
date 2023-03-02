@@ -1,10 +1,17 @@
 import argparse
 import json
+import os
 
-import openai
+from dotenv import load_dotenv
 from git import Repo
+import openai
+
 from is_supported_file import is_supported_file
 from split_linear_lines import split_linear_lines
+
+load_dotenv()
+
+api_key = os.getenv('OPENAI_API_KEY')
 
 parser = argparse.ArgumentParser(description="Repository Index")
 
