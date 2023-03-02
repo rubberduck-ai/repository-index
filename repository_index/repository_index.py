@@ -32,7 +32,12 @@ parser = argparse.ArgumentParser(description="Repository Index")
 parser.add_argument(
     "--repository-path", type=str, help="Git repository path", required=True
 )
-parser.add_argument("--output-file", type=str, help="Output file", required=True)
+parser.add_argument(
+    "--output-file",
+    type=str,
+    help="Output file path",
+    default="./.rubberduck/embedding/result.json",
+)
 
 args = parser.parse_args()
 
@@ -73,8 +78,18 @@ for file in result:
 
             token_count += result.usage.total_tokens
 
-if os.path.exists(os.path.dirname(args.output_file)):
-    with open(args.output_file, "w") as f:
+output_file_path = args.output_file
+
+if os.path.exists(os.path.dirname(output_file_path)):
+    if os.path.exists(output_file_path):
+        choice = input(
+            f"{output_file_path} already exists. Do you want to overwrite it? (y/n) "
+        ).lower()
+        if choice != "y":
+            print("Exiting without writing output file")
+            exit()
+
+    with open(output_file_path, "w") as f:
         f.write(
             json.dumps(
                 {
@@ -87,6 +102,8 @@ if os.path.exists(os.path.dirname(args.output_file)):
                 }
             )
         )
+
+    print(f"Output saved to {output_file_path}")
 else:
     raise ValueError("Invalid output file path")
 
