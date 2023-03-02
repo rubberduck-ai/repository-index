@@ -129,10 +129,13 @@ for file in result:
 
 output_file_path = args.output_file
 
-try:
-    os.makedirs(os.path.dirname(output_file_path))
-except OSError as exc:
-    raise ValueError(f"Invalid output file path: {output_file_path}") from exc
+if os.path.exists(output_file_path):
+    print(f"Overwriting the index file at {output_file_path}")
+else:
+    try:
+        os.makedirs(os.path.dirname(output_file_path))
+    except OSError as exc:
+        raise ValueError(f"Invalid output file path: {output_file_path}") from exc
 
 with open(output_file_path, "w") as f:
     f.write(
