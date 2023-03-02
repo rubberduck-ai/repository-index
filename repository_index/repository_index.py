@@ -87,7 +87,7 @@ if os.path.exists(os.path.dirname(output_file_path)):
             timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(output_file_path)).strftime('%-m-%-d-%Y at %-I:%M %p')
             timestamp += f" ({hours} hours, {minutes} minutes, and {seconds} seconds ago)"
         choice = input(
-            f"\n🚨 Oops! It looks like the embedding file already exists at {output_file_path} 🚨\n\nYour repository was last indexed on {timestamp}. \n\nWould you like to re-index your repository now? (y/n) "
+            f"\n🚨 Oops! It looks like the embedding file already exists at {output_file_path} 🚨\n\nYour repository was last indexed {timestamp}. \n\nWould you like to re-index your repository now? (y/n) "
         ).lower()
         if choice != "y":
             print("Alright, I won't re-index your repository. Goodbye! 👋")
@@ -129,53 +129,26 @@ for file in result:
 
 output_file_path = args.output_file
 
-if os.path.exists(os.path.dirname(output_file_path)):
-    if os.path.exists(output_file_path):
-        choice = input(
-            f"{output_file_path} already exists. Do you want to overwrite it? (y/n) "
-        ).lower()
-        if choice != "y":
-            print("Exiting without writing output file")
-            exit()
+try:
+    os.makedirs(os.path.dirname(output_file_path))
+except OSError as exc:
+    raise ValueError(f"Invalid output file path: {output_file_path}") from exc
 
-        with open(output_file_path, "w") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "version": 0,
-                        "embedding": {
-                            "source": "openai",
-                            "model": "text-embedding-ada-002",
-                        },
-                        "chunks": chunks_with_embedding,
-                    }
-                )
-            )
+with open(output_file_path, "w") as f:
+    f.write(
+        json.dumps(
+            {
+                "version": 0,
+                "embedding": {
+                    "source": "openai",
+                    "model": "text-embedding-ada-002",
+                },
+                "chunks": chunks_with_embedding,
+            }
+        )
+    )
 
-        print(f"Output saved to {output_file_path}")
-    else:
-        try:
-            os.makedirs(os.path.dirname(output_file_path))
-        except OSError as exc:
-            raise ValueError(f"Invalid output file path: {output_file_path}") from exc
-
-        with open(output_file_path, "w") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "version": 0,
-                        "embedding": {
-                            "source": "openai",
-                            "model": "text-embedding-ada-002",
-                        },
-                        "chunks": chunks_with_embedding,
-                    }
-                )
-            )
-
-        print(f"Output saved to {output_file_path}")
-else:
-    raise ValueError("Invalid output file path")
+print(f"Output saved to {output_file_path}")
 
 cost = (token_count / 1000) * 0.0004
 
