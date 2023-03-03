@@ -47,7 +47,7 @@ output_file_path = args.output_file
 
 if args.repository_path is None:
     while True:
-        repo_path = input("\n\nPlease enter the path to the Git repository you want to index (enter '.' for the current directory): ")
+        repo_path = input("Please enter the path to the Git repository you want to index (enter '.' for the current directory): ")
         if not repo_path:
             print("I'm sorry, but the repository path can't be empty. Please try again.")
             continue

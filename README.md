@@ -1,4 +1,4 @@
-# Rubberduck Repository Index
+# Repository Index
 
 Indexes a Git repository using embeddings.
 
@@ -8,6 +8,9 @@ Indexes a Git repository using embeddings.
 
 ## Run
 
-`python3 repository_index/repository_index.py --repository-path . --output-file result.json`
+`python3 path-to/repository_index/repository_index.py`
 
-Needs `OPENAI_API_KEY` environment variable to be set.
+Example:
+`python3 ~/github/repository-index/repository_index/repository_index.py`
+
+> _Tip: set an alias in your `.bashrc` or `.zshrc` to make it easier to run._
