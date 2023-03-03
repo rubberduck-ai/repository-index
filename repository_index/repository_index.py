@@ -3,6 +3,7 @@ import json
 import os
 import time
 import datetime
+import pathspec
 from pathlib import Path
 
 import openai
@@ -64,94 +65,96 @@ if args.repository_path is None:
                 exit()
 
 
+if os.path.exists(str(args.repository_path)):
+    repo = Repo(str(args.repository_path))
+    all_files = list(Path(args.repository_path).rglob("*.*"))
+    if Path(".gitignore").exists():
+        lines = Path(".gitignore").read_text().splitlines()
+        spec = pathspec.PathSpec.from_lines("gitwildmatch", lines)
+        all_files = [file for file in all_files if not spec.match_file(str(file))]
 
-if os.path.exists(args.repository_path):
-    repo = Repo(args.repository_path)
-    allFiles = repo.git.ls_files().split("\n")
-else:
-    raise ValueError("Invalid repository path")
+    result = list(filter(lambda file: is_supported_file(str(file)), all_files))
 
-result = list(filter(is_supported_file, allFiles))
+    if not os.path.exists(os.path.dirname(output_file_path)):
+        os.makedirs(os.path.dirname(output_file_path))
 
-
-if not os.path.exists(os.path.dirname(output_file_path)):
-    os.makedirs(os.path.dirname(output_file_path))
-
-if os.path.exists(output_file_path):
-    file_age = time.time() - os.path.getmtime(output_file_path)
-    file_age_str = datetime.timedelta(seconds=int(file_age))
-    file_age_str = str(file_age_str).split(".")[0]
-    hours, remainder = divmod(int(file_age), 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if hours == 0:
-        timestamp = f"{minutes} minutes and {seconds} seconds ago"
+    if os.path.exists(output_file_path):
+        file_age = time.time() - os.path.getmtime(output_file_path)
+        file_age_str = datetime.timedelta(seconds=int(file_age))
+        file_age_str = str(file_age_str).split(".")[0]
+        hours, remainder = divmod(int(file_age), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours == 0:
+            timestamp = f"{minutes} minutes and {seconds} seconds ago"
+        else:
+            timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(output_file_path)).strftime('%-m-%-d-%Y at %-I:%M %p')
+            timestamp += f" ({hours} hours, {minutes} minutes, and {seconds} seconds ago)"
+        choice = input(
+            f"\n🚨 Oops! It looks like the embedding file already exists at {output_file_path} 🚨\n\nYour repository was last indexed {timestamp}. \n\nWould you like to re-index your repository now? (y/n) "
+        ).lower()
+        if choice != "y":
+            print("Alright, I won't re-index your repository. Goodbye! 👋")
+            exit()
     else:
-        timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(output_file_path)).strftime('%-m-%-d-%Y at %-I:%M %p')
-        timestamp += f" ({hours} hours, {minutes} minutes, and {seconds} seconds ago)"
-    choice = input(
-        f"\n🚨 Oops! It looks like the embedding file already exists at {output_file_path} 🚨\n\nYour repository was last indexed {timestamp}. \n\nWould you like to re-index your repository now? (y/n) "
-    ).lower()
-    if choice != "y":
-        print("Alright, I won't re-index your repository. Goodbye! 👋")
-        exit()
-else:
-    print(f"Creating a new index file for your repository at {output_file_path}.")
+        print(f"Creating a new index file for your repository at {output_file_path}.")
 
-chunks_with_embedding = []
-token_count = 0
+    chunks_with_embedding = []
+    token_count = 0
 
+    for file in result:
+        file_path = args.repository_path + "/" + str(file.relative_to(args.repository_path))
+        if not os.path.exists(file_path):
+            continue
+        with open(file_path, "r") as f:
+            content = f.read()
+            chunks = split_linear_lines(content, 150)
+            for chunk in chunks:
+                chunk_start = chunk["start_position"]
+                chunk_end = chunk["end_position"]
 
-for file in result:
-    with open(args.repository_path + "/" + file, "r") as f:
-        content = f.read()
-        chunks = split_linear_lines(content, 150)
-        for chunk in chunks:
-            chunk_start = chunk["start_position"]
-            chunk_end = chunk["end_position"]
+                print(f"Generating embedding for chunk '{file.name}' {chunk_start}:{chunk_end}")
 
-            print(f"Generating embedding for chunk '{file}' {chunk_start}:{chunk_end}")
+                result = openai.Embedding.create(
+                    engine="text-embedding-ada-002", input=chunk["content"]
+                )
 
-            result = openai.Embedding.create(
-                engine="text-embedding-ada-002", input=chunk["content"]
-            )
+                chunks_with_embedding.append(
+                    {
+                        "start_position": chunk_start,
+                        "end_position": chunk_end,
+                        "content": chunk["content"],
+                        "file": file.name,
+                        "embedding": result.data[0].embedding,
+                    }
+                )
 
-            chunks_with_embedding.append(
+                token_count += result.usage.total_tokens
+
+    output_file_path = args.output_file
+
+    if os.path.exists(output_file_path):
+        print(f"Overwriting the index file at {output_file_path}")
+    else:
+        os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
+    with open(output_file_path, "w") as f:
+        f.write(
+            json.dumps(
                 {
-                    "start_position": chunk_start,
-                    "end_position": chunk_end,
-                    "content": chunk["content"],
-                    "file": file,
-                    "embedding": result.data[0].embedding,
+                    "version": 0,
+                    "embedding": {
+                        "source": "openai",
+                        "model": "text-embedding-ada-002",
+                    },
+                    "chunks": chunks_with_embedding,
                 }
             )
-
-            token_count += result.usage.total_tokens
-
-output_file_path = args.output_file
-
-if os.path.exists(output_file_path):
-    print(f"Overwriting the index file at {output_file_path}")
-else:
-    os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
-
-with open(output_file_path, "w") as f:
-    f.write(
-        json.dumps(
-            {
-                "version": 0,
-                "embedding": {
-                    "source": "openai",
-                    "model": "text-embedding-ada-002",
-                },
-                "chunks": chunks_with_embedding,
-            }
         )
-    )
 
-print(f"Output saved to {output_file_path}")
+    print(f"Output saved to {output_file_path}")
 
-cost = (token_count / 1000) * 0.0004
+    cost = (token_count / 1000) * 0.0004
 
-print()
-print(f"Tokens used: {token_count}")
-print(f"Cost: {cost} USD")
+    print()
+    print(f"Tokens used: {token_count}")
+    print(f"Cost: {cost} USD")
