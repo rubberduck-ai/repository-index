@@ -3,3 +3,4 @@ result.json
 .history
 repository_index/__pycache__
 .rubberduck
+.DS_Store
