@@ -74,28 +74,28 @@ else:
 result = list(filter(is_supported_file, allFiles))
 
 
-if os.path.exists(os.path.dirname(output_file_path)):
-    if os.path.exists(output_file_path):
-        file_age = time.time() - os.path.getmtime(output_file_path)
-        file_age_str = datetime.timedelta(seconds=int(file_age))
-        file_age_str = str(file_age_str).split(".")[0]
-        hours, remainder = divmod(int(file_age), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        if hours == 0:
-            timestamp = f"{minutes} minutes and {seconds} seconds ago"
-        else:
-            timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(output_file_path)).strftime('%-m-%-d-%Y at %-I:%M %p')
-            timestamp += f" ({hours} hours, {minutes} minutes, and {seconds} seconds ago)"
-        choice = input(
-            f"\n🚨 Oops! It looks like the embedding file already exists at {output_file_path} 🚨\n\nYour repository was last indexed {timestamp}. \n\nWould you like to re-index your repository now? (y/n) "
-        ).lower()
-        if choice != "y":
-            print("Alright, I won't re-index your repository. Goodbye! 👋")
-            exit()
+if not os.path.exists(os.path.dirname(output_file_path)):
+    os.makedirs(os.path.dirname(output_file_path))
+
+if os.path.exists(output_file_path):
+    file_age = time.time() - os.path.getmtime(output_file_path)
+    file_age_str = datetime.timedelta(seconds=int(file_age))
+    file_age_str = str(file_age_str).split(".")[0]
+    hours, remainder = divmod(int(file_age), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours == 0:
+        timestamp = f"{minutes} minutes and {seconds} seconds ago"
     else:
-        print(f"Creating a new index file for your repository at {output_file_path}.")
+        timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(output_file_path)).strftime('%-m-%-d-%Y at %-I:%M %p')
+        timestamp += f" ({hours} hours, {minutes} minutes, and {seconds} seconds ago)"
+    choice = input(
+        f"\n🚨 Oops! It looks like the embedding file already exists at {output_file_path} 🚨\n\nYour repository was last indexed {timestamp}. \n\nWould you like to re-index your repository now? (y/n) "
+    ).lower()
+    if choice != "y":
+        print("Alright, I won't re-index your repository. Goodbye! 👋")
+        exit()
 else:
-    raise ValueError(f"Invalid output file path: {output_file_path}")
+    print(f"Creating a new index file for your repository at {output_file_path}.")
 
 chunks_with_embedding = []
 token_count = 0
@@ -132,10 +132,7 @@ output_file_path = args.output_file
 if os.path.exists(output_file_path):
     print(f"Overwriting the index file at {output_file_path}")
 else:
-    try:
-        os.makedirs(os.path.dirname(output_file_path))
-    except OSError as exc:
-        raise ValueError(f"Invalid output file path: {output_file_path}") from exc
+    os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
 
 with open(output_file_path, "w") as f:
     f.write(
