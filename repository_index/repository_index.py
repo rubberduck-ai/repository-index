@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import time
+import dotenv
 import datetime
 import pathspec
 from pathlib import Path
@@ -12,24 +13,58 @@ from is_supported_file import is_supported_file
 from split_linear_lines import split_linear_lines
 
 
-api_key_path = Path.home() / ".openai" / "api_key"
+def get_api_key():
+    # Check if OPENAI_API_KEY environment variable is set
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        print(f"🎉 OpenAI API key found in environment variables. You are good to go!")
+        return api_key
 
-if not api_key_path.exists():
-    choice = input(
-        "OpenAI API key file not found at ~/.openai/api_key. Create new API key file? (y/n) "
-
-    ).lower()
-    if choice == "y":
-        api_key = input("Please enter your OpenAI API key: ").strip()
-        api_key_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(api_key_path, "w") as f:
-            f.write(api_key)
-            print(f"API key saved to {api_key_path}")
+    # Check for .env file in project root
+    env_file_path = Path(__file__).parent.parent / ".env"
+    if env_file_path.exists():
+        dotenv.load_dotenv(env_file_path)
+        api_key = dotenv.get_key(env_file_path, "OPENAI_API_KEY")
+        if api_key:
+            print(f"🎉 OpenAI API key found in .env file at {env_file_path.resolve()}. You are good to go!")
+            return api_key
     else:
-        raise ValueError("OpenAI API key is required to run this script.")
+        print("No .env file found at:", env_file_path.resolve())
 
-with open(api_key_path) as f:
-    openai.api_key = f.read().strip()
+    # Prompt user to enter key manually
+    api_key = input("Enter API key: ").strip()
+    if len(api_key) != 51:
+        print("❌ Invalid API key length. Please enter a valid API key.")
+        return get_api_key()
+
+    print("✅ OpenAI API key length is valid.")
+
+    save_to_file = input("Do you want to save this API key to a .env file for future use? (y/n) ").strip().lower()
+    if save_to_file == "y":
+        dotenv.set_key(env_file_path, "OPENAI_API_KEY", api_key, quote_mode="never")
+        print(f"API key saved to {env_file_path.resolve()} 💪")
+
+        gitignore_path = Path(__file__).parent.parent / ".gitignore"
+        if not gitignore_path.exists():
+            gitignore_path.touch()
+        with open(gitignore_path) as f:
+            gitignore_contents = f.read()
+            if ".env" not in gitignore_contents:
+                with open(gitignore_path, "a") as f:
+                    if gitignore_contents[-1] == "\n":
+                        f.write(".env")
+                    else:
+                        f.write("\n.env\n")
+
+        print(f".env file added to .gitignore 💪")
+
+    else:
+        os.environ["OPENAI_API_KEY"] = api_key
+        print(f"🎉 OpenAI API key set temporarily. Continuing without saving API key to .env file. You will need to enter your API key again next time you run this script.")
+    return api_key
+
+api_key = get_api_key()
+openai.api_key = api_key
 
 parser = argparse.ArgumentParser(description="Repository Index")
 parser.add_argument(
@@ -45,6 +80,9 @@ parser.add_argument(
 args = parser.parse_args()
 
 output_file_path = args.output_file
+
+# rubberduck_dir = ".rubberduck"
+rubberduck_dir = ".rubberduck/embedding/result.json"
 
 if args.repository_path is None:
     while True:
@@ -69,11 +107,32 @@ if os.path.exists(str(args.repository_path)):
     repo = Repo(str(args.repository_path))
     all_files = list(Path(args.repository_path).rglob("*.*"))
     if Path(".gitignore").exists():
-        lines = Path(".gitignore").read_text().splitlines()
-        spec = pathspec.PathSpec.from_lines("gitwildmatch", lines)
-        all_files = [file for file in all_files if not spec.match_file(str(file))]
+        gitignore_file_path = Path(args.repository_path) / ".gitignore"
+        
+        if not gitignore_file_path.exists():
+            gitignore_file_path.touch()
+
+        with open(gitignore_file_path) as f:
+            gitignore_contents = f.read()
+
+            if rubberduck_dir not in gitignore_contents:
+                with open(gitignore_file_path, "a") as f:
+                    if gitignore_contents[-1] == "\n":
+                        f.write(rubberduck_dir)
+                    else:
+                        f.write(f"\n{rubberduck_dir}\n")
+
+        print(f"{rubberduck_dir} added to .gitignore 💪")
+        
+        with open(gitignore_file_path) as f:
+            gitignore_contents = f.read()
+            
+            exclude_patterns = [rubberduck_dir + '/**', rubberduck_dir + '/**/*', rubberduck_dir + '/.env']
+            spec = pathspec.PathSpec.from_lines("gitwildmatch", gitignore_contents.splitlines() + exclude_patterns)
+            all_files = [file for file in all_files if not spec.match_file(str(file))]
 
     result = list(filter(lambda file: is_supported_file(str(file)), all_files))
+    print(f"Found {len(result)} supported files in the repository.")
 
     if not os.path.exists(os.path.dirname(output_file_path)):
         os.makedirs(os.path.dirname(output_file_path))
@@ -98,9 +157,11 @@ if os.path.exists(str(args.repository_path)):
     else:
         print(f"Creating a new index file for your repository at {output_file_path}.")
 
+
+
     chunks_with_embedding = []
     token_count = 0
-
+    
     for file in result:
         file_path = args.repository_path + "/" + str(file.relative_to(args.repository_path))
         if not os.path.exists(file_path):
@@ -114,7 +175,7 @@ if os.path.exists(str(args.repository_path)):
 
                 print(f"Generating embedding for chunk '{file.name}' {chunk_start}:{chunk_end}")
 
-                result = openai.Embedding.create(
+                embedding_result = openai.Embedding.create(
                     engine="text-embedding-ada-002", input=chunk["content"]
                 )
 
@@ -124,11 +185,11 @@ if os.path.exists(str(args.repository_path)):
                         "end_position": chunk_end,
                         "content": chunk["content"],
                         "file": file.name,
-                        "embedding": result.data[0].embedding,
+                        "embedding": embedding_result.data[0].embedding,
                     }
                 )
 
-                token_count += result.usage.total_tokens
+                token_count += embedding_result.usage.total_tokens
 
     output_file_path = args.output_file
 
@@ -137,6 +198,7 @@ if os.path.exists(str(args.repository_path)):
     else:
         os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
 
+    
     with open(output_file_path, "w") as f:
         f.write(
             json.dumps(

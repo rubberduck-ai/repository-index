@@ -33,4 +33,5 @@ def is_supported_file(filename):
         filename.endswith(".min.js")
         or filename.endswith(".min.css")
         or filename.endswith("pnpm-lock.yaml")
+        or filename.endswith("result.json")
     )
